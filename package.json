@@ -1,0 +1,84 @@
+{
+  "name": "vscode-sql-explorer",
+  "displayName": "SQL Explorer",
+  "description": "Query CSV, Parquet, XLSX, and SQLite files using SQL with DuckDB",
+  "version": "0.0.1",
+  "publisher": "sql-explorer",
+  "icon": "icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/vscode-sql-explorer"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Data Science",
+    "Other"
+  ],
+  "keywords": [
+    "sql",
+    "duckdb",
+    "csv",
+    "parquet",
+    "data",
+    "query",
+    "analytics",
+    "xlsx",
+    "sqlite"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sqlExplorer.open",
+        "title": "SQL Explorer: Open Panel",
+        "category": "SQL Explorer"
+      },
+      {
+        "command": "sqlExplorer.addFile",
+        "title": "SQL Explorer: Add File",
+        "category": "SQL Explorer"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "sqlExplorer.addFile",
+          "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json)$/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "sqlExplorer.open",
+        "key": "ctrl+shift+q",
+        "mac": "cmd+shift+q"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
+    "lint": "eslint src --ext ts",
+    "package": "npx vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.28.0",
+    "monaco-editor": "^0.45.0"
+  }
+}
