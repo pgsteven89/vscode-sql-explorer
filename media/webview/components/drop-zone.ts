@@ -16,24 +16,24 @@ export class DropZone {
     private setupEventListeners(): void {
         // Prevent default drag behaviors on document
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            this.container.addEventListener(eventName, this.preventDefaults.bind(this), false);
+            document.addEventListener(eventName, this.preventDefaults.bind(this), false);
         });
 
-        // Highlight drop zone when dragging over
+        // Highlight drop zone when dragging over document
         ['dragenter', 'dragover'].forEach(eventName => {
-            this.container.addEventListener(eventName, () => {
+            document.addEventListener(eventName, () => {
                 this.container.classList.add('drag-over');
             }, false);
         });
 
         ['dragleave', 'drop'].forEach(eventName => {
-            this.container.addEventListener(eventName, () => {
+            document.addEventListener(eventName, () => {
                 this.container.classList.remove('drag-over');
             }, false);
         });
 
-        // Handle dropped files
-        this.container.addEventListener('drop', (e: DragEvent) => {
+        // Handle dropped files on document
+        document.addEventListener('drop', (e: DragEvent) => {
             this.handleDrop(e);
         }, false);
 

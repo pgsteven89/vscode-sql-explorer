@@ -163,7 +163,16 @@ class SqlExplorerApp {
     private async handleDroppedFile(file: File): Promise<void> {
         try {
             const arrayBuffer = await file.arrayBuffer();
-            const data = new Uint8Array(arrayBuffer);
+            let data: Uint8Array = new Uint8Array(arrayBuffer);
+
+            // Fallback to FileReader if arrayBuffer returns empty
+            if (data.length === 0 && file.size > 0) {
+                data = new Uint8Array(await this.readFileWithFileReader(file));
+                if (data.length === 0) {
+                    throw new Error('Cannot read file data. Try using the "+" button instead.');
+                }
+            }
+
             const tableName = this.sanitizeTableName(file.name);
             const fileType = this.getFileType(file.name);
 
@@ -183,6 +192,18 @@ class SqlExplorerApp {
         } catch (error) {
             this.showError(`Failed to load file: ${error}`);
         }
+    }
+
+    private readFileWithFileReader(file: File): Promise<Uint8Array> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result as ArrayBuffer;
+                resolve(new Uint8Array(result));
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsArrayBuffer(file);
+        });
     }
 
     private async executeQuery(): Promise<void> {

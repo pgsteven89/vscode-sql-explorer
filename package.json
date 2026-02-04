@@ -50,6 +50,13 @@
           "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json)$/",
           "group": "navigation"
         }
+      ],
+      "editor/title/context": [
+        {
+          "command": "sqlExplorer.addFile",
+          "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json)$/",
+          "group": "navigation"
+        }
       ]
     },
     "keybindings": [
@@ -79,6 +86,7 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.28.0",
-    "monaco-editor": "^0.45.0"
+    "monaco-editor": "^0.45.0",
+    "xlsx": "^0.18.5"
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import * as duckdb from '@duckdb/duckdb-wasm';
+import * as XLSX from 'xlsx';
 
 export interface Column {
     name: string;
@@ -77,6 +78,9 @@ export class DuckDBManager {
             throw new Error('DuckDB not initialized');
         }
 
+        // Make a copy for xlsx processing (registerFileBuffer may consume the buffer)
+        const dataCopy = fileType === 'xlsx' ? new Uint8Array(data) : data;
+
         // Register the file in DuckDB's virtual file system
         const virtualFileName = `${tableName}.${fileType}`;
         await this.db.registerFileBuffer(virtualFileName, data);
@@ -108,14 +112,114 @@ export class DuckDBManager {
                 await this.conn.query(`DETACH attached_db`);
                 return;
             case 'xlsx':
-                // For XLSX, try spatial extension first, fall back to error
+                // Use SheetJS to parse Excel files (works in webview without external requests)
                 try {
-                    await this.conn.query(`INSTALL spatial; LOAD spatial;`);
-                    createTableSql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM st_read('${virtualFileName}')`;
-                } catch {
-                    throw new Error('XLSX support requires the spatial extension. Please convert to CSV or Parquet.');
+                    const workbook = XLSX.read(dataCopy, {
+                        type: 'array',
+                        cellDates: true,
+                        sheetStubs: true
+                    });
+
+                    const sheetNames = workbook.SheetNames;
+
+                    if (sheetNames.length === 0) {
+                        throw new Error('No sheets found in Excel file');
+                    }
+
+                    // Import each sheet as a separate table
+                    for (const sheetName of sheetNames) {
+                        const worksheet = workbook.Sheets[sheetName];
+                        const wsKeys = Object.keys(worksheet);
+                        const ref = worksheet['!ref'];
+
+                        if (!ref || ref === 'A1') {
+                            const cellKeys = wsKeys.filter(k => !k.startsWith('!'));
+                            if (cellKeys.length === 0) {
+                                continue; // Skip empty sheets
+                            }
+                        }
+
+                        // Convert to JSON with header row
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                            header: 1,
+                            defval: '',
+                            blankrows: false,
+                            raw: true
+                        }) as unknown[][];
+
+                        if (jsonData.length === 0) {
+                            continue; // Skip empty sheets
+                        }
+
+                        // Find the first non-empty row for headers
+                        let headerRowIndex = 0;
+                        while (headerRowIndex < jsonData.length) {
+                            const row = jsonData[headerRowIndex] as unknown[];
+                            if (row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && cell !== '')) {
+                                break;
+                            }
+                            headerRowIndex++;
+                        }
+
+                        if (headerRowIndex >= jsonData.length) {
+                            continue; // Skip sheets with no valid data
+                        }
+
+                        // First valid row is headers
+                        const headerRow = jsonData[headerRowIndex] as unknown[];
+                        const headers: string[] = [];
+
+                        // Determine the number of columns from the first row
+                        const numCols = headerRow.length;
+
+
+                        for (let i = 0; i < numCols; i++) {
+                            const h = headerRow[i];
+                            let header = h != null && h !== '' ? String(h).trim() : `column_${i + 1}`;
+                            // Sanitize header names
+                            header = header.replace(/[^a-zA-Z0-9_]/g, '_') || `column_${i + 1}`;
+                            headers.push(header);
+                        }
+
+                        if (headers.length === 0) {
+                            continue; // Skip sheets with no columns
+                        }
+
+                        // Build table name
+                        const safeSheetName = sheetName.replace(/[^a-zA-Z0-9_]/g, '_');
+                        const sheetTableName = sheetNames.length === 1
+                            ? tableName
+                            : `${tableName}_${safeSheetName}`;
+
+                        // Create column definitions (all as VARCHAR initially)
+                        const columnDefs = headers.map(h => `"${h}" VARCHAR`).join(', ');
+                        await this.conn.query(`CREATE OR REPLACE TABLE "${sheetTableName}" (${columnDefs})`);
+
+                        // Insert data rows (skip header row)
+                        let insertedRows = 0;
+                        for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+                            const row = jsonData[i] as unknown[];
+                            if (!row || row.length === 0) continue;
+
+                            const values = headers.map((_, colIdx) => {
+                                const val = row[colIdx];
+                                if (val === null || val === undefined || val === '') return 'NULL';
+                                // Escape single quotes
+                                return `'${String(val).replace(/'/g, "''")}'`;
+                            }).join(', ');
+                            await this.conn.query(`INSERT INTO "${sheetTableName}" VALUES (${values})`);
+                            insertedRows++;
+                        }
+
+
+                        this.registeredTables.set(sheetTableName, originalFileName);
+                    }
+                    return; // Already handled table registration
+                } catch (error) {
+                    const errorMsg = error instanceof Error ? error.message : String(error);
+                    console.error('Excel parsing error:', errorMsg, error);
+                    throw new Error(`Failed to load Excel file: ${errorMsg}`);
                 }
-                break;
             default:
                 throw new Error(`Unsupported file type: ${fileType}`);
         }
@@ -209,11 +313,15 @@ export class DuckDBManager {
 
         const exportFileName = `export.${format}`;
 
+        // Remove trailing semicolons to prevent syntax errors in COPY command
+        const cleanSql = sql.trim().replace(/;+$/, '');
+
         // Use COPY TO to export
         if (format === 'csv') {
-            await this.conn.query(`COPY (${sql}) TO '${exportFileName}' (FORMAT CSV, HEADER)`);
+            await this.conn.query(`COPY (${cleanSql}) TO '${exportFileName}' (FORMAT CSV, HEADER)`);
         } else {
-            await this.conn.query(`COPY (${sql}) TO '${exportFileName}' (FORMAT PARQUET)`);
+            // Use uncompressed codec to avoid WASM issues with Snappy
+            await this.conn.query(`COPY (${cleanSql}) TO '${exportFileName}' (FORMAT PARQUET, CODEC 'UNCOMPRESSED')`);
         }
 
         // Read the exported file
