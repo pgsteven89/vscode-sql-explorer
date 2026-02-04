@@ -320,9 +320,12 @@ body {
     border-bottom: 2px solid var(--border-color);
 }
 
+
 .grid-header-cell {
-    width: 200px;
-    flex: 0 0 200px;
+    /* width: 200px; Remove fixed width */
+    /* flex: 0 0 200px; Remove fixed flex-basis */
+    min-width: 50px;
+    /* Minimum width safety */
     padding: 8px 12px;
     font-weight: 600;
     font-size: 12px;
@@ -331,6 +334,9 @@ body {
     flex-direction: column;
     gap: 2px;
     user-select: none;
+    position: relative;
+    /* For resizer positioning */
+    box-sizing: border-box;
 }
 
 .grid-header-cell:last-child {
@@ -342,16 +348,23 @@ body {
     font-weight: 400;
     color: var(--vscode-descriptionForeground);
     font-family: var(--vscode-editor-font-family, monospace);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .grid-body {
     position: relative;
+    width: 100%;
+    /* Ensure body takes full width available */
 }
 
 .grid-row {
     display: flex;
     height: var(--row-height);
     border-bottom: 1px solid var(--vscode-list-inactiveFocusOutline, rgba(255, 255, 255, 0.05));
+    width: max-content;
+    /* Allow row to expand based on column widths */
 }
 
 .grid-row:hover {
@@ -363,8 +376,9 @@ body {
 }
 
 .grid-cell {
-    width: 200px;
-    flex: 0 0 200px;
+    /* width: 200px; Remove fixed width */
+    /* flex: 0 0 200px; Remove fixed flex-basis */
+    min-width: 50px;
     padding: 6px 12px;
     border-right: 1px solid var(--vscode-list-inactiveFocusOutline, rgba(255, 255, 255, 0.05));
     overflow: hidden;
@@ -373,11 +387,32 @@ body {
     font-family: var(--vscode-editor-font-family, monospace);
     font-size: 12px;
     line-height: 20px;
+    box-sizing: border-box;
 }
 
 .grid-cell:last-child {
     border-right: none;
 }
+
+/* Column Resizer */
+.column-resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    z-index: 100;
+    user-select: none;
+    touch-action: none;
+}
+
+.column-resizer:hover,
+.column-resizer.resizing {
+    background-color: var(--vscode-focusBorder);
+    opacity: 0.5;
+}
+
 
 .grid-cell.number {
     text-align: right;

@@ -15,14 +15,27 @@ export class ResultsGrid {
     private gridBody: HTMLElement | null = null;
     private visibleStart = 0;
     private visibleEnd = 0;
+    private columnWidths: number[] = [];
+    private dragStartIndex = -1;
+    private dragStartX = 0;
+    private dragStartWidth = 0;
 
     constructor(container: HTMLElement) {
         this.container = container;
+
+        // Bind drag events
+        this.handleMouseMove = this.handleMouseMove.bind(this);
+        this.handleMouseUp = this.handleMouseUp.bind(this);
     }
 
     render(result: QueryResult): void {
         this.columns = result.columns;
         this.rows = result.rows;
+
+        // Initialize column widths if needed
+        if (this.columnWidths.length !== this.columns.length) {
+            this.columnWidths = this.columns.map(() => 200);
+        }
 
         // Reset visible range to force re-render
         this.visibleStart = -1;
@@ -70,18 +83,30 @@ export class ResultsGrid {
         const header = document.createElement('div');
         header.className = 'grid-header';
 
-        const totalWidth = this.columns.length * 200;
-        header.style.width = `${totalWidth}px`;
+        this.updateTotalWidth(header);
 
-        for (const column of this.columns) {
+        this.columns.forEach((column, index) => {
             const cell = document.createElement('div');
             cell.className = 'grid-header-cell';
+            cell.style.width = `${this.columnWidths[index]}px`;
+            cell.style.flex = `0 0 ${this.columnWidths[index]}px`;
+            cell.dataset.colIndex = String(index);
+
             cell.innerHTML = `
                 <span class="column-name">${this.escapeHtml(column.name)}</span>
                 <span class="column-type-badge">${column.type}</span>
             `;
+
+            // Add resizer
+            const resizer = document.createElement('div');
+            resizer.className = 'column-resizer';
+            resizer.addEventListener('mousedown', (e) => this.handleMouseDown(e, index));
+            // Prevent event bubbling to avoid sorting if we implement it later
+            resizer.addEventListener('click', (e) => e.stopPropagation());
+
+            cell.appendChild(resizer);
             header.appendChild(cell);
-        }
+        });
 
         return header;
     }
@@ -123,15 +148,10 @@ export class ResultsGrid {
         const row = document.createElement('div');
         row.className = `grid-row${index % 2 === 0 ? ' even' : ''}`;
 
-        // Ensure row is wide enough for all columns
-        const totalWidth = this.columns.length * 200;
+        this.updateTotalWidth(row);
 
-        row.style.cssText = `
-            position: absolute;
-            top: ${index * this.rowHeight}px;
-            width: ${totalWidth}px;
-            display: flex;
-        `;
+        row.style.position = 'absolute';
+        row.style.top = `${index * this.rowHeight}px`;
 
         for (let colIndex = 0; colIndex < this.columns.length; colIndex++) {
             const value = rowData[colIndex];
@@ -153,11 +173,93 @@ export class ResultsGrid {
 
             cell.className = className;
             cell.textContent = displayValue;
-            cell.title = displayValue; // Show full value on hover
+            cell.title = displayValue;
+
+            // Set dynamic width
+            const width = this.columnWidths[colIndex];
+            cell.style.width = `${width}px`;
+            cell.style.flex = `0 0 ${width}px`;
+
             row.appendChild(cell);
         }
 
         return row;
+    }
+
+    private handleMouseDown(e: MouseEvent, index: number): void {
+        e.preventDefault();
+        e.stopPropagation();
+
+        this.dragStartIndex = index;
+        this.dragStartX = e.clientX;
+        this.dragStartWidth = this.columnWidths[index];
+
+        document.addEventListener('mousemove', this.handleMouseMove);
+        document.addEventListener('mouseup', this.handleMouseUp);
+
+        // Add resizing class to the specific resizer for visual feedback
+        const resizer = (e.target as HTMLElement);
+        resizer.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+    }
+
+    private handleMouseMove(e: MouseEvent): void {
+        if (this.dragStartIndex === -1) return;
+
+        const deltaX = e.clientX - this.dragStartX;
+        const newWidth = Math.max(50, this.dragStartWidth + deltaX);
+
+        this.columnWidths[this.dragStartIndex] = newWidth;
+
+        // Efficiently update DOM
+        this.updateColumnWidth(this.dragStartIndex, newWidth);
+    }
+
+    private handleMouseUp(): void {
+        this.dragStartIndex = -1;
+        document.removeEventListener('mousemove', this.handleMouseMove);
+        document.removeEventListener('mouseup', this.handleMouseUp);
+        document.body.style.cursor = '';
+
+        // Remove resizing class from all resizers
+        const resizers = this.container.querySelectorAll('.column-resizer.resizing');
+        resizers.forEach(r => r.classList.remove('resizing'));
+    }
+
+    private updateColumnWidth(index: number, width: number): void {
+        // Update header cell
+        const headerCell = this.container.querySelector(`.grid-header-cell[data-col-index="${index}"]`) as HTMLElement;
+        if (headerCell) {
+            headerCell.style.width = `${width}px`;
+            headerCell.style.flex = `0 0 ${width}px`;
+        }
+
+        // Update all visible row cells for this column
+        // Note: querySelectorAll is fast enough for visible rows (~50)
+        // Since we don't have unique IDs on cells, we iterate rows
+        if (this.gridBody) {
+            const rows = this.gridBody.children;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i] as HTMLElement;
+                const cell = row.children[index] as HTMLElement;
+                if (cell) {
+                    cell.style.width = `${width}px`;
+                    cell.style.flex = `0 0 ${width}px`;
+                }
+                this.updateTotalWidth(row);
+            }
+        }
+
+        // Update header total width
+        const header = this.container.querySelector('.grid-header') as HTMLElement;
+        if (header) {
+            this.updateTotalWidth(header);
+        }
+    }
+
+    private updateTotalWidth(element: HTMLElement): void {
+        const totalWidth = this.columnWidths.reduce((sum, w) => sum + w, 0);
+        element.style.width = `${totalWidth}px`;
     }
 
     private isNumericType(type: string): boolean {
