@@ -32,10 +32,8 @@ export class ResultsGrid {
         this.columns = result.columns;
         this.rows = result.rows;
 
-        // Initialize column widths if needed
-        if (this.columnWidths.length !== this.columns.length) {
-            this.columnWidths = this.columns.map(() => 200);
-        }
+        // Auto-size column widths based on content
+        this.columnWidths = this.calculateColumnWidths();
 
         // Reset visible range to force re-render
         this.visibleStart = -1;
@@ -260,6 +258,47 @@ export class ResultsGrid {
     private updateTotalWidth(element: HTMLElement): void {
         const totalWidth = this.columnWidths.reduce((sum, w) => sum + w, 0);
         element.style.width = `${totalWidth}px`;
+    }
+
+    private calculateColumnWidths(): number[] {
+        const MIN_WIDTH = 50;
+        const MAX_WIDTH = 300;
+        const PADDING = 32; // Account for cell padding and resizer
+        const HEADER_EXTRA_PADDING = 60; // Extra space for type badge
+
+        // Create a hidden canvas context to measure text
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            // Fallback to default widths if canvas isn't available
+            return this.columns.map(() => 150);
+        }
+
+        // Use the same font as the grid cells
+        ctx.font = '13px var(--vscode-editor-font-family, monospace)';
+
+        return this.columns.map((column, colIndex) => {
+            // Measure header text (column name + type badge)
+            const headerWidth = ctx.measureText(column.name).width + HEADER_EXTRA_PADDING;
+
+            // Sample data rows to find max content width
+            // Only sample first 100 rows for performance
+            const sampleSize = Math.min(100, this.rows.length);
+            let maxDataWidth = 0;
+
+            for (let i = 0; i < sampleSize; i++) {
+                const value = this.rows[i][colIndex];
+                const displayValue = this.formatValue(value, column.type);
+                const textWidth = ctx.measureText(displayValue).width + PADDING;
+                maxDataWidth = Math.max(maxDataWidth, textWidth);
+            }
+
+            // Use the larger of header width or data width
+            const optimalWidth = Math.max(headerWidth, maxDataWidth);
+
+            // Clamp to min/max bounds
+            return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, optimalWidth));
+        });
     }
 
     private isNumericType(type: string): boolean {

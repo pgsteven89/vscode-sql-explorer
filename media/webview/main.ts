@@ -127,6 +127,24 @@ class SqlExplorerApp {
         window.addEventListener('resize', () => {
             this.sqlEditor.layout();
         });
+
+        // Handle table removal from schema explorer
+        document.getElementById('schema-explorer')?.addEventListener('removeTable', async (event) => {
+            const customEvent = event as CustomEvent<{ tableName: string }>;
+            const tableName = customEvent.detail.tableName;
+            try {
+                await this.duckdb.removeTable(tableName);
+                // Update SQL editor autocomplete after removal
+                const schemas = await this.duckdb.getTableSchemas();
+                this.sqlEditor.updateTableInfo(schemas.map(s => ({
+                    name: s.name,
+                    columns: s.columns
+                })));
+                this.setQueryStatus(`Removed table "${tableName}"`);
+            } catch (error) {
+                this.showError(`Failed to remove table: ${error}`);
+            }
+        });
     }
 
     private async handleExtensionMessage(message: Message): Promise<void> {
