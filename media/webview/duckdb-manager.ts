@@ -22,6 +22,7 @@ export interface QueryResult {
     rows: unknown[][];
     totalRows: number;
     executionTime: number;
+    isTruncated?: boolean;
 }
 
 type FileType = 'csv' | 'parquet' | 'xlsx' | 'sqlite' | 'json';
@@ -253,11 +254,21 @@ export class DuckDBManager {
             rows.push(rowData);
         }
 
+        // Limit to 10,000 rows
+        const MAX_ROWS = 10000;
+        let isTruncated = false;
+
+        if (rows.length > MAX_ROWS) {
+            rows.length = MAX_ROWS;
+            isTruncated = true;
+        }
+
         return {
             columns,
             rows,
-            totalRows: rows.length,
+            totalRows: isTruncated ? MAX_ROWS : rows.length,
             executionTime: 0, // Will be set by caller
+            isTruncated
         };
     }
 

@@ -55,6 +55,24 @@ export interface LogMessage {
     message: string;
 }
 
+export interface QueryResultMessage {
+    type: 'queryResult';
+    columns: Column[];
+    rows: unknown[][];
+    totalRows: number;
+    executionTime: number;
+}
+
+export interface QueryErrorMessage {
+    type: 'queryError';
+    error: string;
+}
+
+export interface RequestExportMessage {
+    type: 'requestExport';
+    format: 'csv' | 'parquet';
+}
+
 // Union type for all messages
 export type Message =
     | AddFileMessage
@@ -62,4 +80,8 @@ export type Message =
     | PickFileMessage
     | DownloadResultsMessage
     | ErrorMessage
-    | LogMessage;
+    | LogMessage
+    | QueryResultMessage
+    | QueryErrorMessage
+    | RequestExportMessage;
+

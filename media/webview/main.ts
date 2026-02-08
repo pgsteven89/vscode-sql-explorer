@@ -5,7 +5,6 @@
 import { DuckDBManager, TableSchema, QueryResult } from './duckdb-manager';
 import { SchemaExplorer } from './components/schema-explorer';
 import { SqlEditor } from './components/sql-editor';
-import { ResultsGrid } from './components/results-grid';
 import { DropZone } from './components/drop-zone';
 
 // Declare VSCode API type
@@ -37,9 +36,9 @@ class SqlExplorerApp {
     private duckdb: DuckDBManager;
     private schemaExplorer: SchemaExplorer;
     private sqlEditor: SqlEditor;
-    private resultsGrid: ResultsGrid;
     private dropZone: DropZone;
     private loadingOverlay: HTMLElement;
+    private lastQuerySql: string = '';
     private lastQueryResult: QueryResult | null = null;
 
     constructor() {
@@ -66,10 +65,6 @@ class SqlExplorerApp {
             document.getElementById('sql-editor')!,
             () => this.executeQuery(),
             monacoUri
-        );
-
-        this.resultsGrid = new ResultsGrid(
-            document.getElementById('results-grid')!
         );
 
         this.dropZone = new DropZone(
@@ -109,15 +104,6 @@ class SqlExplorerApp {
             this.executeQuery();
         });
 
-        // Download buttons
-        document.getElementById('download-csv-btn')?.addEventListener('click', () => {
-            this.downloadResults('csv');
-        });
-
-        document.getElementById('download-parquet-btn')?.addEventListener('click', () => {
-            this.downloadResults('parquet');
-        });
-
         // Messages from extension
         window.addEventListener('message', (event) => {
             this.handleExtensionMessage(event.data as Message);
@@ -151,6 +137,11 @@ class SqlExplorerApp {
         switch (message.type) {
             case 'addFile':
                 await this.handleAddFile(message as unknown as AddFileMessage);
+                break;
+            case 'requestExport':
+                // Extension is requesting export (triggered from results panel)
+                const exportMessage = message as { type: string; format: 'csv' | 'parquet' };
+                await this.exportResults(exportMessage.format);
                 break;
         }
     }
@@ -241,37 +232,48 @@ class SqlExplorerApp {
 
             result.executionTime = endTime - startTime;
             this.lastQueryResult = result;
+            this.lastQuerySql = sql;
 
-            // Update results grid
-            this.resultsGrid.render(result);
+            // Serialize rows to handle BigInt values (DuckDB returns BigInt which can't be JSON serialized)
+            const serializedRows = this.serializeRows(result.rows);
+
+            // Send results to extension host (which forwards to bottom panel)
+            this.vscode.postMessage({
+                type: 'queryResult',
+                columns: result.columns,
+                rows: serializedRows,
+                totalRows: result.totalRows,
+                executionTime: result.executionTime,
+                isTruncated: result.isTruncated,
+            });
 
             // Update status
             const formattedTime = result.executionTime.toFixed(0);
-            this.setResultsInfo(`${result.totalRows.toLocaleString()} rows (${formattedTime}ms)`);
-            this.setQueryStatus('Query completed');
-
-            // Enable download buttons
-            this.setDownloadButtonsEnabled(true);
+            this.setQueryStatus(`Query completed: ${result.totalRows.toLocaleString()} rows (${formattedTime}ms)`);
 
             runBtn.disabled = false;
         } catch (error) {
             const runBtn = document.getElementById('run-btn') as HTMLButtonElement;
             runBtn.disabled = false;
             this.setQueryStatus('Query failed');
-            this.resultsGrid.showError(String(error));
-            this.setDownloadButtonsEnabled(false);
+
+            // Send error to extension host (which forwards to bottom panel)
+            this.vscode.postMessage({
+                type: 'queryError',
+                error: String(error),
+            });
         }
     }
 
-    private async downloadResults(format: 'csv' | 'parquet'): Promise<void> {
-        const sql = this.sqlEditor.getValue().trim();
-        if (!sql) {
+    private async exportResults(format: 'csv' | 'parquet'): Promise<void> {
+        if (!this.lastQuerySql) {
+            this.showError('No query to export');
             return;
         }
 
         try {
             this.setQueryStatus(`Exporting as ${format.toUpperCase()}...`);
-            const data = await this.duckdb.exportResults(sql, format);
+            const data = await this.duckdb.exportResults(this.lastQuerySql, format);
 
             // Send to extension for download
             this.vscode.postMessage({
@@ -325,18 +327,22 @@ class SqlExplorerApp {
         }
     }
 
-    private setResultsInfo(info: string): void {
-        const el = document.getElementById('results-info');
-        if (el) {
-            el.textContent = info;
-        }
-    }
-
-    private setDownloadButtonsEnabled(enabled: boolean): void {
-        const csvBtn = document.getElementById('download-csv-btn') as HTMLButtonElement;
-        const parquetBtn = document.getElementById('download-parquet-btn') as HTMLButtonElement;
-        if (csvBtn) { csvBtn.disabled = !enabled; }
-        if (parquetBtn) { parquetBtn.disabled = !enabled; }
+    /**
+     * Serialize row values to handle BigInt (DuckDB returns BigInt which can't be JSON stringified)
+     */
+    private serializeRows(rows: unknown[][]): unknown[][] {
+        return rows.map(row =>
+            row.map(cell => {
+                if (typeof cell === 'bigint') {
+                    // Convert BigInt to Number if safe, otherwise to string
+                    if (cell >= Number.MIN_SAFE_INTEGER && cell <= Number.MAX_SAFE_INTEGER) {
+                        return Number(cell);
+                    }
+                    return cell.toString();
+                }
+                return cell;
+            })
+        );
     }
 }
 

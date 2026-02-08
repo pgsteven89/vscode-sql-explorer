@@ -211,6 +211,13 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Full height mode when results are in bottom panel */
+#editor-panel.full-height {
+    height: auto;
+    flex: 1;
+    border-bottom: none;
+}
+
 .editor-toolbar {
     height: var(--toolbar-height);
     padding: 0 12px;

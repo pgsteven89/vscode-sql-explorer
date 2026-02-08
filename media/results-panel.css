@@ -1,0 +1,234 @@
+/**
+ * Results Panel Styles
+ * Standalone CSS for the SQL Results panel webview
+ */
+
+:root {
+    --vscode-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--vscode-font-family);
+    font-size: 13px;
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-panel-background);
+}
+
+#results-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.results-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background-color: var(--vscode-editorWidget-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    flex-shrink: 0;
+}
+
+#results-info {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.results-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.results-actions button {
+    padding: 4px 10px;
+    font-size: 12px;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.results-actions button:hover:not(:disabled) {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.results-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#results-grid {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--vscode-descriptionForeground);
+    gap: 8px;
+}
+
+.empty-icon {
+    font-size: 32px;
+    opacity: 0.6;
+}
+
+/* Error state */
+.error-state {
+    padding: 16px;
+    color: var(--vscode-errorForeground);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    margin: 12px;
+    border-radius: 4px;
+}
+
+/* Table styles */
+.results-table-wrapper {
+    min-width: 100%;
+    display: inline-block;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.results-table th,
+.results-table td {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.results-table th {
+    position: sticky;
+    top: 0;
+    background-color: var(--vscode-editorWidget-background);
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    border-bottom: 2px solid var(--vscode-panel-border);
+    z-index: 1;
+}
+
+.results-table th .column-header {
+    display: flex;
+    flex-direction: column;
+}
+
+.results-table th .column-type {
+    font-size: 10px;
+    font-weight: normal;
+    color: var(--vscode-descriptionForeground);
+    text-transform: uppercase;
+}
+
+.results-table tr:hover td {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.results-table td.numeric {
+    text-align: right;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.results-table td.null-value {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+/* Column resizer */
+.column-resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 6px;
+    cursor: col-resize;
+    background-color: transparent;
+    z-index: 10;
+}
+
+.column-resizer:hover,
+.column-resizer.resizing {
+    background-color: var(--vscode-focusBorder);
+}
+
+/* Row number column */
+.row-number {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    text-align: right;
+    user-select: none;
+    width: 50px;
+    min-width: 50px;
+}
+
+/* Scrollbar styling */
+#results-grid::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+#results-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#results-grid::-webkit-scrollbar-thumb {
+    background-color: var(--vscode-scrollbarSlider-background);
+    border-radius: 5px;
+}
+
+#results-grid::-webkit-scrollbar-thumb:hover {
+    background-color: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+/* Virtual scroll container */
+.virtual-scroll-container {
+    position: relative;
+    overflow: auto;
+    height: 100%;
+}
+
+.virtual-scroll-content {
+    position: relative;
+}
+
+.virtual-row {
+    position: absolute;
+    width: 100%;
+    display: flex;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.virtual-row:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.virtual-cell {
+    padding: 6px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}

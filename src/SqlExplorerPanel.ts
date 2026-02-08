@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { Message, FileType } from './messages';
+import { getResultsProvider } from './extension';
 
 export class SqlExplorerPanel {
     public static currentPanel: SqlExplorerPanel | undefined;
@@ -89,6 +90,8 @@ export class SqlExplorerPanel {
     }
 
     private async _handleMessage(message: Message): Promise<void> {
+        console.log('SqlExplorerPanel._handleMessage received:', message.type, message);
+
         switch (message.type) {
             case 'ready':
                 console.log('Webview is ready');
@@ -102,7 +105,44 @@ export class SqlExplorerPanel {
             case 'pickFile':
                 await this._handlePickFile();
                 break;
+            case 'queryResult':
+                // Forward query results to the results panel
+                console.log('Received queryResult, forwarding to results panel');
+                const resultsProvider = getResultsProvider();
+                console.log('Results provider:', resultsProvider ? 'exists' : 'null');
+                if (resultsProvider) {
+                    // Access properties directly from the message object
+                    const msg = message as any;
+                    console.log('Forwarding results:', {
+                        columns: msg.columns?.length,
+                        rows: msg.rows?.length,
+                        totalRows: msg.totalRows
+                    });
+                    resultsProvider.showResults({
+                        columns: msg.columns,
+                        rows: msg.rows,
+                        totalRows: msg.totalRows,
+                        executionTime: msg.executionTime,
+                        isTruncated: msg.isTruncated,
+                    });
+                }
+                break;
+            case 'queryError':
+                // Forward query error to the results panel
+                const errorProvider = getResultsProvider();
+                if (errorProvider) {
+                    errorProvider.showError((message as any).error);
+                }
+                break;
         }
+    }
+
+    public async requestExport(format: 'csv' | 'parquet'): Promise<void> {
+        // Request the webview to export current results
+        this._panel.webview.postMessage({
+            type: 'requestExport',
+            format: format,
+        } as Message);
     }
 
     private async _handlePickFile(): Promise<void> {
@@ -202,7 +242,7 @@ export class SqlExplorerPanel {
             <div id="schema-explorer"></div>
         </div>
         <div id="main-content">
-            <div id="editor-panel">
+            <div id="editor-panel" class="full-height">
                 <div class="editor-toolbar">
                     <button id="run-btn" class="primary-btn" title="Run Query (Ctrl+Enter)">
                         ▶ Run
@@ -210,16 +250,6 @@ export class SqlExplorerPanel {
                     <span id="query-status"></span>
                 </div>
                 <div id="sql-editor"></div>
-            </div>
-            <div id="results-panel">
-                <div class="results-toolbar">
-                    <span id="results-info"></span>
-                    <div class="results-actions">
-                        <button id="download-csv-btn" disabled>Download CSV</button>
-                        <button id="download-parquet-btn" disabled>Download Parquet</button>
-                    </div>
-                </div>
-                <div id="results-grid"></div>
             </div>
         </div>
     </div>
