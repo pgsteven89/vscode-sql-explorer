@@ -11,3 +11,6 @@ esbuild.config.js
 **/*.map
 .git/**
 *.vsix
+out-test/**
+tsconfig.test.json
+**/*.py

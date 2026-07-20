@@ -33,6 +33,15 @@
                 }
             },
             "label": "npm: watch"
+        },
+        {
+            "type": "npm",
+            "script": "compile-tests",
+            "group": "build",
+            "problemMatcher": [
+                "$tsc"
+            ],
+            "label": "npm: compile-tests"
         }
     ]
 }

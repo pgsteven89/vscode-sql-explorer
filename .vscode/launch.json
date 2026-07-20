@@ -24,6 +24,19 @@
                 "${workspaceFolder}/dist/**/*.js"
             ],
             "preLaunchTask": "npm: build"
+        },
+        {
+            "name": "Run Extension Tests",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--extensionTestsPath=${workspaceFolder}/out-test/test/suite/index"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out-test/**/*.js"
+            ],
+            "preLaunchTask": "npm: compile-tests"
         }
     ]
 }

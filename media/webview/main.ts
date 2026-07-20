@@ -7,6 +7,9 @@ import { SchemaExplorer } from './components/schema-explorer';
 import { SqlEditor } from './components/sql-editor';
 import { DropZone } from './components/drop-zone';
 
+// Get the VS Code API
+const vscode = acquireVsCodeApi();
+
 // Declare VSCode API type
 declare function acquireVsCodeApi(): {
     postMessage(message: unknown): void;
@@ -32,7 +35,7 @@ interface Message {
 }
 
 class SqlExplorerApp {
-    private vscode = acquireVsCodeApi();
+    private vscode = vscode;
     private duckdb: DuckDBManager;
     private schemaExplorer: SchemaExplorer;
     private sqlEditor: SqlEditor;
@@ -88,8 +91,14 @@ class SqlExplorerApp {
             // Default query will be overridden if 'restoreQuery' is received right after 'ready'
             this.sqlEditor.setValue('-- Write your SQL query here\n-- Drop a CSV, Parquet, or JSON file to get started\nSELECT * FROM your_table LIMIT 100;');
         } catch (error) {
-            this.showLoading(false);
+            console.error('Failed to initialize DuckDB:', error);
             this.showError(`Failed to initialize DuckDB: ${error}`);
+            
+            // Post initialization error back to the extension host for easier debugging
+            this.vscode.postMessage({
+                type: 'error',
+                error: `Failed to initialize DuckDB: ${error}`
+            });
         }
     }
 
