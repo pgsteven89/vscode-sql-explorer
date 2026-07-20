@@ -8,9 +8,10 @@ export class SqlExplorerPanel {
 
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
+    private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
 
-    public static createOrShow(extensionUri: vscode.Uri): void {
+    public static createOrShow(context: vscode.ExtensionContext): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -30,18 +31,19 @@ export class SqlExplorerPanel {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [
-                    vscode.Uri.joinPath(extensionUri, 'media'),
-                    vscode.Uri.joinPath(extensionUri, 'assets'),
+                    vscode.Uri.joinPath(context.extensionUri, 'media'),
+                    vscode.Uri.joinPath(context.extensionUri, 'assets'),
                 ],
             }
         );
 
-        SqlExplorerPanel.currentPanel = new SqlExplorerPanel(panel, extensionUri);
+        SqlExplorerPanel.currentPanel = new SqlExplorerPanel(panel, context);
     }
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
         this._panel = panel;
-        this._extensionUri = extensionUri;
+        this._context = context;
+        this._extensionUri = context.extensionUri;
 
         // Set the webview's initial html content
         this._update();
@@ -60,16 +62,26 @@ export class SqlExplorerPanel {
     public async addFile(uri: vscode.Uri): Promise<void> {
         try {
             const fileName = uri.path.split('/').pop() || 'unknown';
-            const fileData = await vscode.workspace.fs.readFile(uri);
             const fileType = this._getFileType(fileName);
 
-            // Send file to webview
+            // Dynamically add the file's directory to localResourceRoots so the webview can fetch it
+            const fileDir = vscode.Uri.joinPath(uri, '..');
+            const currentRoots = this._panel.webview.options.localResourceRoots || [];
+            
+            this._panel.webview.options = {
+                ...this._panel.webview.options,
+                localResourceRoots: [...currentRoots, fileDir]
+            };
+
+            // Send file URI to webview so it can fetch it directly
+            const webviewUri = this._panel.webview.asWebviewUri(uri).toString();
+
             this._panel.webview.postMessage({
                 type: 'addFile',
                 fileName: fileName,
-                fileData: Array.from(fileData), // Convert Uint8Array to array for serialization
+                webviewUri: webviewUri,
                 fileType: fileType,
-            } as Message);
+            });
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to load file: ${error}`);
         }
@@ -95,6 +107,10 @@ export class SqlExplorerPanel {
         switch (message.type) {
             case 'ready':
                 console.log('Webview is ready');
+                const lastQuery = this._context.workspaceState.get<string>('sqlExplorer.lastQuery');
+                if (lastQuery) {
+                    this._panel.webview.postMessage({ type: 'restoreQuery', query: lastQuery });
+                }
                 break;
             case 'downloadResults':
                 await this._handleDownload(message);
@@ -104,6 +120,12 @@ export class SqlExplorerPanel {
                 break;
             case 'pickFile':
                 await this._handlePickFile();
+                break;
+            case 'saveQueryState':
+                // Save the current query to workspace state
+                if (message.query) {
+                    await this._context.workspaceState.update('sqlExplorer.lastQuery', message.query);
+                }
                 break;
             case 'queryResult':
                 // Forward query results to the results panel
@@ -246,6 +268,9 @@ export class SqlExplorerPanel {
                 <div class="editor-toolbar">
                     <button id="run-btn" class="primary-btn" title="Run Query (Ctrl+Enter)">
                         ▶ Run
+                    </button>
+                    <button id="format-btn" class="secondary-btn" title="Format SQL (Shift+Alt+F)">
+                        Format SQL
                     </button>
                     <span id="query-status"></span>
                 </div>

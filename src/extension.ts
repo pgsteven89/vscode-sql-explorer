@@ -28,13 +28,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register the open panel command
     const openCommand = vscode.commands.registerCommand('sqlExplorer.open', () => {
-        SqlExplorerPanel.createOrShow(context.extensionUri);
+        SqlExplorerPanel.createOrShow(context);
     });
 
     // Register the add file command (from context menu)
     const addFileCommand = vscode.commands.registerCommand('sqlExplorer.addFile', async (uri: vscode.Uri) => {
         // Ensure panel is open
-        SqlExplorerPanel.createOrShow(context.extensionUri);
+        SqlExplorerPanel.createOrShow(context);
 
         // Add the file to the panel
         if (SqlExplorerPanel.currentPanel && uri) {

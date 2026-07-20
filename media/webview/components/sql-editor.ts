@@ -3,6 +3,8 @@
  * Full-featured SQL editor with syntax highlighting and autocomplete
  */
 
+import { format } from 'sql-formatter';
+
 // Monaco will be loaded via AMD loader from the assets
 declare const monaco: typeof import('monaco-editor');
 declare const require: {
@@ -171,6 +173,21 @@ export class SqlEditor {
             this.onExecute();
         });
 
+        // Register formatting provider
+        monaco.languages.registerDocumentFormattingEditProvider('sql', {
+            provideDocumentFormattingEdits: (model) => {
+                const formatted = format(model.getValue(), {
+                    language: 'postgresql', // DuckDB is closest to Postgres
+                    keywordCase: 'upper',
+                    linesBetweenQueries: 2,
+                });
+                return [{
+                    range: model.getFullModelRange(),
+                    text: formatted
+                }];
+            }
+        });
+
         // Register completion provider
         this.registerCompletionProvider();
     }
@@ -247,6 +264,12 @@ export class SqlEditor {
 
     updateTableInfo(tables: TableInfo[]): void {
         this.tableInfo = tables;
+    }
+
+    format(): void {
+        if (this.editor) {
+            this.editor.getAction('editor.action.formatDocument')?.run();
+        }
     }
 
     getValue(): string {

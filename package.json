@@ -110,6 +110,7 @@
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.28.0",
     "monaco-editor": "^0.45.0",
+    "sql-formatter": "^15.8.2",
     "xlsx": "^0.18.5"
   }
 }

@@ -22,7 +22,7 @@ type FileType = 'csv' | 'parquet' | 'xlsx' | 'sqlite' | 'json';
 interface AddFileMessage {
     type: 'addFile';
     fileName: string;
-    fileData: number[];
+    webviewUri: string;
     fileType: FileType;
 }
 
@@ -85,7 +85,7 @@ class SqlExplorerApp {
             // Notify extension we're ready
             this.vscode.postMessage({ type: 'ready' });
 
-            // Set default query
+            // Default query will be overridden if 'restoreQuery' is received right after 'ready'
             this.sqlEditor.setValue('-- Write your SQL query here\n-- Drop a CSV, Parquet, or JSON file to get started\nSELECT * FROM your_table LIMIT 100;');
         } catch (error) {
             this.showLoading(false);
@@ -102,6 +102,11 @@ class SqlExplorerApp {
         // Run button
         document.getElementById('run-btn')?.addEventListener('click', () => {
             this.executeQuery();
+        });
+
+        // Format button
+        document.getElementById('format-btn')?.addEventListener('click', () => {
+            this.sqlEditor.format();
         });
 
         // Messages from extension
@@ -143,12 +148,20 @@ class SqlExplorerApp {
                 const exportMessage = message as { type: string; format: 'csv' | 'parquet' };
                 await this.exportResults(exportMessage.format);
                 break;
+            case 'restoreQuery':
+                const restoreMessage = message as { type: string; query: string };
+                this.sqlEditor.setValue(restoreMessage.query);
+                break;
         }
     }
 
     private async handleAddFile(message: AddFileMessage): Promise<void> {
         try {
-            const fileData = new Uint8Array(message.fileData);
+            this.setQueryStatus(`Downloading ${message.fileName}...`);
+            const response = await fetch(message.webviewUri);
+            if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const fileData = new Uint8Array(arrayBuffer);
             const tableName = this.sanitizeTableName(message.fileName);
 
             this.setQueryStatus(`Loading ${message.fileName}...`);
@@ -245,6 +258,12 @@ class SqlExplorerApp {
                 totalRows: result.totalRows,
                 executionTime: result.executionTime,
                 isTruncated: result.isTruncated,
+            });
+
+            // Save query state
+            this.vscode.postMessage({
+                type: 'saveQueryState',
+                query: sql,
             });
 
             // Update status
