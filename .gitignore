@@ -6,3 +6,4 @@ assets/*.wasm
 assets/*.js
 media/webview.js
 media/webview.js.map
+out-test/

@@ -51,18 +51,48 @@ export class DuckDBManager {
         };
 
         try {
-            const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
+            console.log('Initializing DuckDB WASM...');
+            
+            // Bypass duckdb.selectBundle() as its internal feature detection worker 
+            // can silently hang in VS Code Webview sandboxes.
+            const bundle = MANUAL_BUNDLES.mvp;
+            if (!bundle) {
+                throw new Error('MVP bundle not found');
+            }
 
-            // Create a blob URL for the worker to bypass cross-origin restrictions in webview
-            const blob = new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'application/javascript' });
-            const workerURL = URL.createObjectURL(blob);
+            console.log('Fetching DuckDB worker from:', bundle.mainWorker);
+            // Fetch the worker code directly instead of using importScripts
+            // This prevents cross-origin importScripts errors in VS Code Webviews
+            const workerResponse = await fetch(bundle.mainWorker!);
+            if (!workerResponse.ok) {
+                throw new Error(`Failed to fetch DuckDB worker: ${workerResponse.statusText}`);
+            }
+            const workerCode = await workerResponse.text();
+
+            console.log('Creating worker blob...');
+            // Create a blob URL for the worker
+            const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+            const workerURL = URL.createObjectURL(workerBlob);
             const worker = new Worker(workerURL);
 
             const logger = new duckdb.ConsoleLogger();
 
             this.db = new duckdb.AsyncDuckDB(logger, worker);
-            await this.db.instantiate(bundle.mainModule);
+            
+            // Fetch WASM in the main thread because Blob workers in VS Code bypass 
+            // the Webview Service Worker and cannot fetch from vscode-resource URIs.
+            const wasmResponse = await fetch(bundle.mainModule);
+            if (!wasmResponse.ok) {
+                throw new Error(`Failed to fetch WASM: ${wasmResponse.statusText}`);
+            }
+            const wasmBuffer = await wasmResponse.arrayBuffer();
+            const wasmBlob = new Blob([wasmBuffer], { type: 'application/wasm' });
+            const wasmURL = URL.createObjectURL(wasmBlob);
+            
+            await this.db.instantiate(wasmURL);
+            
             this.conn = await this.db.connect();
+            await this.conn.query('SET memory_limit=\'1GB\'');
         } catch (error) {
             console.error('DuckDB initialization error:', error);
             throw error;

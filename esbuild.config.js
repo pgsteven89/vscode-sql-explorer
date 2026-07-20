@@ -37,7 +37,8 @@ const webviewConfig = {
     platform: 'browser',
     target: 'es2022',
     sourcemap: true,
-    minify: !isWatch,
+    minify: false, // Minification can break DuckDB WASM bindings
+    keepNames: true,
     loader: {
         '.wasm': 'file',
         '.ttf': 'file',
