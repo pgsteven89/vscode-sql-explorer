@@ -94,6 +94,7 @@
      * Render a static table for small datasets
      */
     function renderStaticTable() {
+        resultsGrid.onscroll = null;
         const totalWidth = columnWidths.reduce((sum, w) => sum + w, 0) + 60; // +60 for row numbers
 
         let html = `<div class="results-table-wrapper" style="min-width: ${totalWidth}px">`;
@@ -148,7 +149,7 @@
 
         // Create header
         let headerHtml = '<div class="virtual-header" style="position: sticky; top: 0; z-index: 10; background: var(--vscode-editorWidget-background);">';
-        headerHtml += '<div class="virtual-row" style="display: flex; border-bottom: 2px solid var(--vscode-panel-border);">';
+        headerHtml += '<div class="virtual-row" style="position: relative; display: flex; border-bottom: 2px solid var(--vscode-panel-border); background: var(--vscode-editorWidget-background);">';
         headerHtml += `<div class="virtual-cell row-number" style="width: 60px; min-width: 60px;">#</div>`;
         columns.forEach((col, i) => {
             headerHtml += `<div class="virtual-cell" style="width: ${columnWidths[i]}px; min-width: ${columnWidths[i]}px; font-weight: 600;">
@@ -162,22 +163,21 @@
 
         // Create virtual scroll container
         resultsGrid.innerHTML = `
-            ${headerHtml}
-            <div class="virtual-scroll-container" style="min-width: ${totalWidth}px">
+            <div class="virtual-scroll-container" style="min-width: ${totalWidth}px; height: auto; overflow: visible;">
+                ${headerHtml}
                 <div class="virtual-scroll-content" style="height: ${totalHeight}px;">
                     <div class="virtual-rows"></div>
                 </div>
             </div>
         `;
 
-        const scrollContainer = resultsGrid.querySelector('.virtual-scroll-container');
         const virtualRows = resultsGrid.querySelector('.virtual-rows');
 
-        // Update visible rows on scroll
-        scrollContainer.addEventListener('scroll', () => updateVisibleRows(scrollContainer, virtualRows));
+        // Update visible rows on scroll using the main grid
+        resultsGrid.onscroll = () => updateVisibleRows(resultsGrid, virtualRows);
 
         // Initial render
-        updateVisibleRows(scrollContainer, virtualRows);
+        updateVisibleRows(resultsGrid, virtualRows);
     }
 
     /**
