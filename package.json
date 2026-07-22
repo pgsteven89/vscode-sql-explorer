@@ -2,7 +2,7 @@
   "name": "vscode-sql-explorer",
   "displayName": "SQL Explorer",
   "description": "Query CSV, Parquet, XLSX, and SQLite files using SQL with DuckDB",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "pgstevens",
   "icon": "icon.png",
   "license": "MIT",
@@ -102,6 +102,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
+    "@types/sinon": "^22.0.0",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
@@ -111,6 +112,7 @@
     "eslint": "^8.56.0",
     "glob": "^13.0.6",
     "mocha": "^11.7.6",
+    "sinon": "^22.1.0",
     "typescript": "^5.3.3"
   },
   "dependencies": {

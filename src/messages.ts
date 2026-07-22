@@ -73,6 +73,11 @@ export interface RequestExportMessage {
     format: 'csv' | 'parquet';
 }
 
+export interface SaveQueryStateMessage {
+    type: 'saveQueryState';
+    query: string;
+}
+
 // Union type for all messages
 export type Message =
     | AddFileMessage
@@ -83,5 +88,6 @@ export type Message =
     | LogMessage
     | QueryResultMessage
     | QueryErrorMessage
-    | RequestExportMessage;
+    | RequestExportMessage
+    | SaveQueryStateMessage;
 
