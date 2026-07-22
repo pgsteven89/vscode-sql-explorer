@@ -40,6 +40,10 @@ export class SqlExplorerPanel {
         SqlExplorerPanel.currentPanel = new SqlExplorerPanel(panel, context);
     }
 
+    public static revive(panel: vscode.WebviewPanel, context: vscode.ExtensionContext): void {
+        SqlExplorerPanel.currentPanel = new SqlExplorerPanel(panel, context);
+    }
+
     private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
         this._panel = panel;
         this._context = context;

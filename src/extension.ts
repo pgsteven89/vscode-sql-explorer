@@ -69,6 +69,15 @@ export function activate(context: vscode.ExtensionContext) {
     if (SqlExplorerPanel.currentPanel) {
         context.subscriptions.push(SqlExplorerPanel.currentPanel);
     }
+
+    // Register WebviewPanelSerializer to revive the panel on extension host restarts
+    if (vscode.window.registerWebviewPanelSerializer) {
+        vscode.window.registerWebviewPanelSerializer(SqlExplorerPanel.viewType, {
+            async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
+                SqlExplorerPanel.revive(webviewPanel, context);
+            }
+        });
+    }
 }
 
 export function deactivate() {
