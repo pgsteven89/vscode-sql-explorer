@@ -18,6 +18,8 @@ suite('File Types Support Test Suite', () => {
     const fileTypes = [
         'sample.csv',
         'sample.json',
+        'sample.jsonl',
+        'sample.ndjson',
         'sample.parquet',
         'sample.sqlite',
         'sample.xlsx'

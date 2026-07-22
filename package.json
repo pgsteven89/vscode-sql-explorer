@@ -70,14 +70,14 @@
       "explorer/context": [
         {
           "command": "sqlExplorer.addFile",
-          "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json)$/",
+          "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json|jsonl|ndjson)$/",
           "group": "navigation"
         }
       ],
       "editor/title/context": [
         {
           "command": "sqlExplorer.addFile",
-          "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json)$/",
+          "when": "resourceExtname =~ /\\.(csv|parquet|xlsx|xls|sqlite|db|json|jsonl|ndjson)$/",
           "group": "navigation"
         }
       ]

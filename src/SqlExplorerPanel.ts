@@ -100,7 +100,9 @@ export class SqlExplorerPanel {
             case 'xls': return 'xlsx';
             case 'sqlite':
             case 'db': return 'sqlite';
-            case 'json': return 'json';
+            case 'json':
+            case 'jsonl':
+            case 'ndjson': return 'json';
             default: return 'csv';
         }
     }
@@ -175,7 +177,7 @@ export class SqlExplorerPanel {
         const uris = await vscode.window.showOpenDialog({
             canSelectMany: true,
             filters: {
-                'Data Files': ['csv', 'parquet', 'xlsx', 'xls', 'sqlite', 'db', 'json'],
+                'Data Files': ['csv', 'parquet', 'xlsx', 'xls', 'sqlite', 'db', 'json', 'jsonl', 'ndjson'],
                 'All Files': ['*'],
             },
         });
