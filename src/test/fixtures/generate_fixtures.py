@@ -18,14 +18,26 @@ with open(os.path.join(base_path, 'sample.csv'), 'w', newline='') as f:
 with open(os.path.join(base_path, 'sample.json'), 'w') as f:
     json.dump([{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], f)
 
+# 2a. sample.jsonl
+with open(os.path.join(base_path, 'sample.jsonl'), 'w') as f:
+    f.write('{"id": 1, "name": "Alice"}\n{"id": 2, "name": "Bob"}\n')
+
+# 2b. sample.ndjson
+with open(os.path.join(base_path, 'sample.ndjson'), 'w') as f:
+    f.write('{"id": 1, "name": "Alice"}\n{"id": 2, "name": "Bob"}\n')
+
 # 3. sample.sqlite
-conn = sqlite3.connect(os.path.join(base_path, 'sample.sqlite'))
+sqlite_path = os.path.join(base_path, 'sample.sqlite')
+if os.path.exists(sqlite_path):
+    os.remove(sqlite_path)
+conn = sqlite3.connect(sqlite_path)
 cursor = conn.cursor()
 cursor.execute('CREATE TABLE users (id INTEGER, name TEXT)')
 cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
 cursor.execute("INSERT INTO users VALUES (2, 'Bob')")
 conn.commit()
 conn.close()
+
 
 # Use pandas for parquet and xlsx
 df = pd.DataFrame({'id': [1, 2], 'name': ['Alice', 'Bob']})
