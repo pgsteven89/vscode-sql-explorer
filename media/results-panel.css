@@ -232,3 +232,34 @@ body {
     text-overflow: ellipsis;
     flex-shrink: 0;
 }
+
+/* Search Inputs */
+.search-input {
+    padding: 4px 8px;
+    font-size: 12px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    border-radius: 3px;
+    outline: none;
+}
+
+.search-input:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+.column-search-input {
+    width: 100%;
+    margin-top: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    border-radius: 2px;
+    outline: none;
+}
+
+.column-search-input:focus {
+    border-color: var(--vscode-focusBorder);
+}

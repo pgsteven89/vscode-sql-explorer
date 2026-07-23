@@ -10,10 +10,14 @@ export class SchemaExplorer {
     private onInsertText: (text: string) => void;
     private schemas: TableSchema[] = [];
     private expandedTables: Set<string> = new Set();
+    private contextMenu: HTMLElement | null = null;
 
     constructor(container: HTMLElement, onInsertText: (text: string) => void) {
         this.container = container;
         this.onInsertText = onInsertText;
+        
+        // Dismiss context menu when clicking anywhere
+        document.addEventListener('click', () => this.hideContextMenu());
     }
 
     update(schemas: TableSchema[]): void {
@@ -83,6 +87,12 @@ export class SchemaExplorer {
             this.removeTable(schema.name);
         });
 
+        // Context menu for table
+        header.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.showContextMenu(e.pageX, e.pageY, `SELECT * FROM "${schema.name}" LIMIT 10;`);
+        });
+
         tableItem.appendChild(header);
 
         // Columns list
@@ -108,6 +118,13 @@ export class SchemaExplorer {
                 this.onInsertText(`"${schema.name}"."${column.name}"`);
             });
 
+            // Context menu for column
+            columnItem.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showContextMenu(e.pageX, e.pageY, `SELECT "${column.name}" FROM "${schema.name}" LIMIT 10;`);
+            });
+
             columnsDiv.appendChild(columnItem);
         }
 
@@ -124,6 +141,39 @@ export class SchemaExplorer {
             return `${(count / 1000).toFixed(1)}K rows`;
         }
         return `${count} rows`;
+    }
+
+    private showContextMenu(x: number, y: number, query: string): void {
+        this.hideContextMenu();
+
+        this.contextMenu = document.createElement('div');
+        this.contextMenu.className = 'context-menu';
+        
+        // Ensure menu stays within window bounds
+        const maxLeft = window.innerWidth - 160; // Approximate menu width
+        const maxTop = window.innerHeight - 50;  // Approximate menu height
+        this.contextMenu.style.left = `${Math.min(x, maxLeft)}px`;
+        this.contextMenu.style.top = `${Math.min(y, maxTop)}px`;
+
+        const previewItem = document.createElement('div');
+        previewItem.className = 'context-menu-item';
+        previewItem.textContent = 'Preview Data (Limit 10)';
+        previewItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const event = new CustomEvent('previewData', { detail: { query } });
+            this.container.dispatchEvent(event);
+            this.hideContextMenu();
+        });
+
+        this.contextMenu.appendChild(previewItem);
+        document.body.appendChild(this.contextMenu);
+    }
+
+    private hideContextMenu(): void {
+        if (this.contextMenu) {
+            this.contextMenu.remove();
+            this.contextMenu = null;
+        }
     }
 
     private async removeTable(tableName: string): Promise<void> {

@@ -128,6 +128,14 @@ class SqlExplorerApp {
             this.sqlEditor.layout();
         });
 
+        // Handle preview data from schema explorer
+        document.getElementById('schema-explorer')?.addEventListener('previewData', (event) => {
+            const customEvent = event as CustomEvent<{ query: string }>;
+            const query = customEvent.detail.query;
+            this.sqlEditor.setValue(query);
+            this.executeQuery();
+        });
+
         // Handle table removal from schema explorer
         document.getElementById('schema-explorer')?.addEventListener('removeTable', async (event) => {
             const customEvent = event as CustomEvent<{ tableName: string }>;

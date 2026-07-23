@@ -146,6 +146,7 @@ export class SqlResultsViewProvider implements vscode.WebviewViewProvider {
         <div class="results-toolbar">
             <span id="results-info">No results yet</span>
             <div class="results-actions">
+                <input type="text" id="global-search" class="search-input" placeholder="Search results..." disabled />
                 <button id="download-csv-btn" disabled>Download CSV</button>
                 <button id="download-parquet-btn" disabled>Download Parquet</button>
             </div>

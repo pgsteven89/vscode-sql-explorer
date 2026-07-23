@@ -11,13 +11,17 @@
     let currentResults = null;
     let columns = [];
     let rows = [];
+    let originalRows = [];
     let columnWidths = [];
+    let globalSearchQuery = '';
+    let columnSearchQueries = {};
 
     // DOM Elements
     const resultsInfo = document.getElementById('results-info');
     const resultsGrid = document.getElementById('results-grid');
     const downloadCsvBtn = document.getElementById('download-csv-btn');
     const downloadParquetBtn = document.getElementById('download-parquet-btn');
+    const globalSearchInput = document.getElementById('global-search');
 
     // Virtual scrolling settings
     const ROW_HEIGHT = 32;
@@ -33,6 +37,12 @@
         // Download buttons
         downloadCsvBtn?.addEventListener('click', () => requestDownload('csv'));
         downloadParquetBtn?.addEventListener('click', () => requestDownload('parquet'));
+
+        // Search input
+        globalSearchInput?.addEventListener('input', (e) => {
+            globalSearchQuery = e.target.value;
+            filterRows();
+        });
 
         // Notify extension we're ready
         vscode.postMessage({ type: 'ready' });
@@ -63,24 +73,77 @@
     function renderResults(data) {
         currentResults = data;
         columns = data.columns || [];
-        rows = data.rows || [];
+        originalRows = data.rows || [];
+        
+        // Reset column searches on new query
+        columnSearchQueries = {};
+        
+        if (globalSearchInput) {
+            globalSearchInput.disabled = false;
+        }
 
-        if (rows.length === 0) {
+        if (originalRows.length === 0) {
+            rows = [];
             showEmpty('Query returned no results');
             setDownloadEnabled(false);
+            if (globalSearchInput) globalSearchInput.disabled = true;
             return;
         }
 
-        // Calculate column widths
-        columnWidths = calculateColumnWidths();
-
-        // Update info
-        const timeStr = data.executionTime ? ` (${data.executionTime.toFixed(0)}ms)` : '';
-        const truncatedStr = data.isTruncated ? ' (truncated)' : '';
-        resultsInfo.textContent = `${data.totalRows.toLocaleString()} rows${truncatedStr}${timeStr}`;
+        // Calculate column widths based on original rows
+        columnWidths = calculateColumnWidths(originalRows);
 
         // Enable downloads
         setDownloadEnabled(true);
+
+        filterRows();
+    }
+    
+    function filterRows() {
+        if (!globalSearchQuery && Object.keys(columnSearchQueries).length === 0) {
+            rows = originalRows;
+        } else {
+            const globalLower = globalSearchQuery.toLowerCase();
+            rows = originalRows.filter(row => {
+                // Check column filters
+                for (const colIndexStr in columnSearchQueries) {
+                    const colIndex = parseInt(colIndexStr, 10);
+                    const colQuery = columnSearchQueries[colIndex];
+                    if (!colQuery) continue;
+                    
+                    const cellValue = formatValue(row[colIndex], columns[colIndex]?.type).toLowerCase();
+                    if (!cellValue.includes(colQuery)) {
+                        return false;
+                    }
+                }
+                
+                // Check global filter
+                if (globalLower) {
+                    let matchGlobal = false;
+                    for (let i = 0; i < row.length; i++) {
+                        const cellValue = formatValue(row[i], columns[i]?.type).toLowerCase();
+                        if (cellValue.includes(globalLower)) {
+                            matchGlobal = true;
+                            break;
+                        }
+                    }
+                    if (!matchGlobal) return false;
+                }
+                
+                return true;
+            });
+        }
+        
+        // Update info
+        const timeStr = currentResults.executionTime ? ` (${currentResults.executionTime.toFixed(0)}ms)` : '';
+        const truncatedStr = currentResults.isTruncated ? ' (truncated)' : '';
+        const filteredStr = rows.length !== originalRows.length ? ` (filtered from ${originalRows.length.toLocaleString()})` : '';
+        resultsInfo.textContent = `${rows.length.toLocaleString()} rows${filteredStr}${truncatedStr}${timeStr}`;
+
+        if (rows.length === 0) {
+            showEmpty('No results match the current filters');
+            return;
+        }
 
         // Render with virtual scrolling for large datasets
         if (rows.length > 100) {
@@ -88,6 +151,31 @@
         } else {
             renderStaticTable();
         }
+        
+        bindColumnSearchInputs();
+    }
+    
+    function bindColumnSearchInputs() {
+        const inputs = resultsGrid.querySelectorAll('.column-search-input');
+        inputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                const colIndex = e.target.dataset.colIndex;
+                columnSearchQueries[colIndex] = e.target.value.toLowerCase();
+                
+                const focusedCol = colIndex;
+                filterRows();
+                
+                // Restore focus after re-render
+                const newInput = resultsGrid.querySelector(`.column-search-input[data-col-index="${focusedCol}"]`);
+                if (newInput) {
+                    newInput.focus();
+                    const val = newInput.value;
+                    newInput.value = '';
+                    newInput.value = val;
+                }
+            });
+            input.addEventListener('mousedown', e => e.stopPropagation());
+        });
     }
 
     /**
@@ -104,10 +192,12 @@
         html += '<thead><tr>';
         html += '<th class="row-number">#</th>';
         columns.forEach((col, i) => {
+            const searchVal = columnSearchQueries[i] || '';
             html += `<th data-col-index="${i}" style="width: ${columnWidths[i]}px; min-width: 50px; position: relative;">
                 <div class="column-header">
                     <span class="column-name">${escapeHtml(col.name)}</span>
                     <span class="column-type">${escapeHtml(col.type)}</span>
+                    <input type="text" class="column-search-input" data-col-index="${i}" value="${escapeHtml(searchVal)}" placeholder="Filter..." />
                 </div>
                 <div class="column-resizer" data-col-index="${i}"></div>
             </th>`;
@@ -152,10 +242,12 @@
         headerHtml += '<div class="virtual-row" style="position: relative; display: flex; border-bottom: 2px solid var(--vscode-panel-border); background: var(--vscode-editorWidget-background);">';
         headerHtml += `<div class="virtual-cell row-number" style="width: 60px; min-width: 60px;">#</div>`;
         columns.forEach((col, i) => {
+            const searchVal = columnSearchQueries[i] || '';
             headerHtml += `<div class="virtual-cell" style="width: ${columnWidths[i]}px; min-width: ${columnWidths[i]}px; font-weight: 600;">
                 <div class="column-header">
                     <span class="column-name">${escapeHtml(col.name)}</span>
                     <span class="column-type" style="font-size: 10px; color: var(--vscode-descriptionForeground);">${escapeHtml(col.type)}</span>
+                    <input type="text" class="column-search-input" data-col-index="${i}" value="${escapeHtml(searchVal)}" placeholder="Filter..." />
                 </div>
             </div>`;
         });
@@ -216,8 +308,8 @@
     /**
      * Calculate optimal column widths
      */
-    function calculateColumnWidths() {
-        const MIN_WIDTH = 20;
+    function calculateColumnWidths(dataRows) {
+        const MIN_WIDTH = 60;
         const MAX_WIDTH = 300;
         const CHAR_WIDTH = 8;
         const PADDING = 24;
@@ -227,7 +319,7 @@
             let maxWidth = (col.name.length + col.type.length / 2) * CHAR_WIDTH + PADDING;
 
             // Sample first 100 rows for content width
-            const sampleRows = rows.slice(0, 100);
+            const sampleRows = dataRows.slice(0, 100);
             for (const row of sampleRows) {
                 const value = formatValue(row[colIndex], col.type);
                 const width = value.length * CHAR_WIDTH + PADDING;
