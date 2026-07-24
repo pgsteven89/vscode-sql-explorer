@@ -278,6 +278,9 @@ export class SqlExplorerPanel {
                     <button id="format-btn" class="secondary-btn" title="Format SQL (Shift+Alt+F)">
                         Format SQL
                     </button>
+                    <button id="settings-btn" class="secondary-btn" title="Settings">
+                        ⚙️ Settings
+                    </button>
                     <span id="query-status"></span>
                 </div>
                 <div id="sql-editor"></div>
@@ -287,6 +290,23 @@ export class SqlExplorerPanel {
     <div id="loading-overlay" class="hidden">
         <div class="loading-spinner"></div>
         <span>Initializing DuckDB...</span>
+    </div>
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="close-settings-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="max-rows-input">Max Rows to Return:</label>
+                    <input type="number" id="max-rows-input" min="1" max="1000000" value="10000" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-settings-btn" class="primary-btn">Save</button>
+            </div>
+        </div>
     </div>
     <script type="module" src="${scriptUri}" nonce="${nonce}"></script>
 </body>

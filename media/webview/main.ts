@@ -118,6 +118,31 @@ class SqlExplorerApp {
             this.sqlEditor.format();
         });
 
+        // Settings modal
+        const settingsModal = document.getElementById('settings-modal');
+        const maxRowsInput = document.getElementById('max-rows-input') as HTMLInputElement;
+
+        document.getElementById('settings-btn')?.addEventListener('click', () => {
+            if (settingsModal && maxRowsInput) {
+                maxRowsInput.value = this.duckdb.maxRows.toString();
+                settingsModal.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('close-settings-btn')?.addEventListener('click', () => {
+            settingsModal?.classList.add('hidden');
+        });
+
+        document.getElementById('save-settings-btn')?.addEventListener('click', () => {
+            if (maxRowsInput) {
+                const newMaxRows = parseInt(maxRowsInput.value, 10);
+                if (!isNaN(newMaxRows) && newMaxRows > 0) {
+                    this.duckdb.maxRows = newMaxRows;
+                }
+            }
+            settingsModal?.classList.add('hidden');
+        });
+
         // Messages from extension
         window.addEventListener('message', (event) => {
             this.handleExtensionMessage(event.data as Message);

@@ -30,6 +30,7 @@ type FileType = 'csv' | 'parquet' | 'xlsx' | 'sqlite' | 'json';
 export class DuckDBManager {
     private db: duckdb.AsyncDuckDB | null = null;
     private conn: duckdb.AsyncDuckDBConnection | null = null;
+    public maxRows: number = 10000;
     private assetsUri: string;
     private registeredTables: Map<string, string> = new Map(); // tableName -> fileName
 
@@ -284,19 +285,18 @@ export class DuckDBManager {
             rows.push(rowData);
         }
 
-        // Limit to 10,000 rows
-        const MAX_ROWS = 10000;
+        // Limit rows based on configurable maxRows
         let isTruncated = false;
 
-        if (rows.length > MAX_ROWS) {
-            rows.length = MAX_ROWS;
+        if (rows.length > this.maxRows) {
+            rows.length = this.maxRows;
             isTruncated = true;
         }
 
         return {
             columns,
             rows,
-            totalRows: isTruncated ? MAX_ROWS : rows.length,
+            totalRows: isTruncated ? this.maxRows : rows.length,
             executionTime: 0, // Will be set by caller
             isTruncated
         };
