@@ -124,7 +124,9 @@ export class DuckDBManager {
 
         switch (fileType) {
             case 'csv':
-                createTableSql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv_auto('${virtualFileName}')`;
+                // Use sample_size=-1 to scan the entire file for type inference. 
+                // This prevents import errors when a column's data type changes after the default sample size (20,480 rows).
+                createTableSql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv_auto('${virtualFileName}', sample_size=-1)`;
                 break;
             case 'parquet':
                 createTableSql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${virtualFileName}')`;

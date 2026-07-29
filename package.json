@@ -2,7 +2,7 @@
   "name": "vscode-sql-explorer",
   "displayName": "SQL Explorer",
   "description": "Query CSV, Parquet, XLSX, and SQLite files using SQL with DuckDB",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "pgstevens",
   "icon": "icon.png",
   "license": "MIT",

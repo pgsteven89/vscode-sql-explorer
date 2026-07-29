@@ -38,6 +38,9 @@ suite('File Types Support Test Suite', () => {
             // Execute the addFile command to verify it doesn't throw
             try {
                 await vscode.commands.executeCommand('sqlExplorer.addFile', uri);
+                // Give DuckDB time to process the file to avoid overwhelming the WASM worker
+                // with concurrent registerFile commands which causes OOM or signature mismatches
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 assert.ok(true, `Successfully added ${file}`);
             } catch (error: any) {
                 assert.fail(`Failed to process ${file}: ${error.message}`);
