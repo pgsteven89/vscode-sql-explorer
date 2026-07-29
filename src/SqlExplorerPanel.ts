@@ -11,18 +11,19 @@ export class SqlExplorerPanel {
     private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
 
+    private _isReady: boolean = false;
+    private _messageQueue: Message[] = [];
+
     public static createOrShow(context: vscode.ExtensionContext): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
 
-        // If we already have a panel, show it
         if (SqlExplorerPanel.currentPanel) {
             SqlExplorerPanel.currentPanel._panel.reveal(column);
             return;
         }
 
-        // Otherwise, create a new panel
         const panel = vscode.window.createWebviewPanel(
             SqlExplorerPanel.viewType,
             'SQL Explorer',
@@ -33,6 +34,7 @@ export class SqlExplorerPanel {
                 localResourceRoots: [
                     vscode.Uri.joinPath(context.extensionUri, 'media'),
                     vscode.Uri.joinPath(context.extensionUri, 'assets'),
+                    ...(vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.map(f => f.uri) : [])
                 ],
             }
         );
@@ -49,13 +51,10 @@ export class SqlExplorerPanel {
         this._context = context;
         this._extensionUri = context.extensionUri;
 
-        // Set the webview's initial html content
         this._update();
 
-        // Listen for when the panel is disposed
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-        // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
             (message: Message) => this._handleMessage(message),
             null,
@@ -63,24 +62,36 @@ export class SqlExplorerPanel {
         );
     }
 
+    private postMessageSafely(message: Message) {
+        if (this._isReady) {
+            this._panel.webview.postMessage(message);
+        } else {
+            this._messageQueue.push(message);
+        }
+    }
+
     public async addFile(uri: vscode.Uri): Promise<void> {
         try {
             const fileName = uri.path.split('/').pop() || 'unknown';
             const fileType = this._getFileType(fileName);
 
-            // Dynamically add the file's directory to localResourceRoots so the webview can fetch it
             const fileDir = vscode.Uri.joinPath(uri, '..');
             const currentRoots = this._panel.webview.options.localResourceRoots || [];
             
-            this._panel.webview.options = {
-                ...this._panel.webview.options,
-                localResourceRoots: [...currentRoots, fileDir]
-            };
+            const isAlreadyRoot = currentRoots.some(root => root.toString() === fileDir.toString());
+            
+            if (!isAlreadyRoot) {
+                // Updating options reloads the webview. We must reset _isReady.
+                this._isReady = false;
+                this._panel.webview.options = {
+                    ...this._panel.webview.options,
+                    localResourceRoots: [...currentRoots, fileDir]
+                };
+            }
 
-            // Send file URI to webview so it can fetch it directly
             const webviewUri = this._panel.webview.asWebviewUri(uri).toString();
 
-            this._panel.webview.postMessage({
+            this.postMessageSafely({
                 type: 'addFile',
                 fileName: fileName,
                 webviewUri: webviewUri,
@@ -113,9 +124,19 @@ export class SqlExplorerPanel {
         switch (message.type) {
             case 'ready':
                 console.log('Webview is ready');
+                this._isReady = true;
+                
+                // Process queued messages
+                while (this._messageQueue.length > 0) {
+                    const msg = this._messageQueue.shift();
+                    if (msg) {
+                        this._panel.webview.postMessage(msg);
+                    }
+                }
+
                 const lastQuery = this._context.workspaceState.get<string>('sqlExplorer.lastQuery');
                 if (lastQuery) {
-                    this._panel.webview.postMessage({ type: 'restoreQuery', query: lastQuery });
+                    this.postMessageSafely({ type: 'restoreQuery', query: lastQuery });
                 }
                 break;
             case 'downloadResults':
@@ -128,18 +149,15 @@ export class SqlExplorerPanel {
                 await this._handlePickFile();
                 break;
             case 'saveQueryState':
-                // Save the current query to workspace state
                 if (message.query) {
                     await this._context.workspaceState.update('sqlExplorer.lastQuery', message.query);
                 }
                 break;
             case 'queryResult':
-                // Forward query results to the results panel
                 console.log('Received queryResult, forwarding to results panel');
                 const resultsProvider = getResultsProvider();
                 console.log('Results provider:', resultsProvider ? 'exists' : 'null');
                 if (resultsProvider) {
-                    // Access properties directly from the message object
                     const msg = message as any;
                     console.log('Forwarding results:', {
                         columns: msg.columns?.length,
@@ -156,7 +174,6 @@ export class SqlExplorerPanel {
                 }
                 break;
             case 'queryError':
-                // Forward query error to the results panel
                 const errorProvider = getResultsProvider();
                 if (errorProvider) {
                     errorProvider.showError((message as any).error);

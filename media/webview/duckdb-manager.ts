@@ -56,9 +56,11 @@ export class DuckDBManager {
             
             // Bypass duckdb.selectBundle() as its internal feature detection worker 
             // can silently hang in VS Code Webview sandboxes.
-            const bundle = MANUAL_BUNDLES.mvp;
+            // Using the 'eh' (Exception Handling) bundle because modern VS Code 
+            // supports Wasm EH, and it fixes the '_setThrew is not defined' error on crashes.
+            const bundle = MANUAL_BUNDLES.eh;
             if (!bundle) {
-                throw new Error('MVP bundle not found');
+                throw new Error('EH bundle not found');
             }
 
             console.log('Fetching DuckDB worker from:', bundle.mainWorker);
@@ -93,7 +95,7 @@ export class DuckDBManager {
             await this.db.instantiate(wasmURL);
             
             this.conn = await this.db.connect();
-            await this.conn.query('SET memory_limit=\'1GB\'');
+            await this.conn.query('SET memory_limit=\'2GB\'');
         } catch (error) {
             console.error('DuckDB initialization error:', error);
             throw error;

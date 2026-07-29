@@ -26,7 +26,7 @@ export interface QueryResult {
 export interface AddFileMessage {
     type: 'addFile';
     fileName: string;
-    fileData: number[]; // Serialized Uint8Array
+    webviewUri: string;
     fileType: FileType;
 }
 
@@ -78,6 +78,11 @@ export interface SaveQueryStateMessage {
     query: string;
 }
 
+export interface RestoreQueryMessage {
+    type: 'restoreQuery';
+    query: string;
+}
+
 // Union type for all messages
 export type Message =
     | AddFileMessage
@@ -89,5 +94,6 @@ export type Message =
     | QueryResultMessage
     | QueryErrorMessage
     | RequestExportMessage
-    | SaveQueryStateMessage;
+    | SaveQueryStateMessage
+    | RestoreQueryMessage;
 
