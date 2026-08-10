@@ -285,8 +285,16 @@ export class SqlExplorerPanel {
                 </div>
             </div>
             <div id="schema-explorer"></div>
+            <div class="sidebar-header" style="margin-top: 10px;">
+                <h2>Query History</h2>
+            </div>
+            <div id="query-history-list" class="history-list"></div>
         </div>
         <div id="main-content">
+            <div class="editor-tabs" id="editor-tabs">
+                <div class="tabs-container" id="tabs-container"></div>
+                <button id="add-tab-btn" class="icon-btn" title="New Tab">+</button>
+            </div>
             <div id="editor-panel" class="full-height">
                 <div class="editor-toolbar">
                     <button id="run-btn" class="primary-btn" title="Run Query (Ctrl+Enter)">

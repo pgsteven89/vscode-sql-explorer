@@ -143,6 +143,46 @@ body {
     text-transform: uppercase;
 }
 
+.column-title-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+
+.column-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hide-column-btn {
+    background: transparent;
+    border: none;
+    color: var(--vscode-icon-foreground);
+    cursor: pointer;
+    opacity: 0;
+    padding: 0 4px;
+    font-size: 10px;
+    border-radius: 3px;
+}
+
+th:hover .hide-column-btn,
+.virtual-cell:hover .hide-column-btn {
+    opacity: 0.5;
+}
+
+.hide-column-btn:hover {
+    opacity: 1 !important;
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.column-filter-row {
+    width: 100%;
+    margin-top: 4px;
+}
+
 .results-table tr:hover td {
     background-color: var(--vscode-list-hoverBackground);
 }

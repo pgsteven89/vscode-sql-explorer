@@ -342,4 +342,101 @@ export class SqlEditor {
             this.editor.layout();
         }
     }
+
+    getQueryAtCursor(): string {
+        if (this.editor) {
+            const selection = this.editor.getSelection();
+            if (selection && !selection.isEmpty()) {
+                return this.editor.getModel()?.getValueInRange(selection) || '';
+            }
+
+            const model = this.editor.getModel();
+            const position = this.editor.getPosition();
+            
+            if (!model || !position) return this.getValue();
+
+            const text = model.getValue();
+            const offset = model.getOffsetAt(position);
+            
+            return this.extractQueryAtOffset(text, offset);
+        }
+        
+        // Fallback for textarea
+        const fallback = this.container.querySelector('#sql-fallback-editor') as HTMLTextAreaElement;
+        if (fallback) {
+            const text = fallback.value;
+            const offset = fallback.selectionStart;
+            if (fallback.selectionStart !== fallback.selectionEnd) {
+                return text.substring(fallback.selectionStart, fallback.selectionEnd);
+            }
+            return this.extractQueryAtOffset(text, offset);
+        }
+        return '';
+    }
+
+    private extractQueryAtOffset(text: string, offset: number): string {
+        let inString = false;
+        let stringChar = '';
+        let lastQueryStart = 0;
+        let queryRanges: {start: number, end: number}[] = [];
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            
+            if (inString) {
+                if (char === stringChar) {
+                    // Check for escaped quote like ''
+                    if (i + 1 < text.length && text[i+1] === stringChar) {
+                        i++; // skip next quote
+                    } else {
+                        inString = false;
+                    }
+                }
+            } else {
+                if (char === "'" || char === '"') {
+                    inString = true;
+                    stringChar = char;
+                } else if (char === ';') {
+                    queryRanges.push({start: lastQueryStart, end: i + 1});
+                    lastQueryStart = i + 1;
+                }
+            }
+        }
+        
+        // Add last query if text doesn't end with ;
+        if (lastQueryStart < text.length && text.substring(lastQueryStart).trim().length > 0) {
+            queryRanges.push({start: lastQueryStart, end: text.length});
+        }
+
+        // Find the range containing the offset
+        for (let i = 0; i < queryRanges.length; i++) {
+            const range = queryRanges[i];
+            // If offset is inside the range (or at the exact semicolon boundary)
+            if (offset >= range.start && offset <= range.end) {
+                const query = text.substring(range.start, range.end).trim();
+                if (query.length > 0) return query;
+            }
+        }
+
+        // If offset is after all ranges but there are ranges, return the last non-empty one
+        for (let i = queryRanges.length - 1; i >= 0; i--) {
+             const query = text.substring(queryRanges[i].start, queryRanges[i].end).trim();
+             if (query.length > 0) return query;
+        }
+
+        return text.trim();
+    }
+
+    getViewState(): any {
+        if (this.editor) {
+            return this.editor.saveViewState();
+        }
+        return null;
+    }
+
+    restoreViewState(state: any): void {
+        if (this.editor && state) {
+            this.editor.restoreViewState(state);
+        }
+    }
 }

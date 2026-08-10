@@ -15,6 +15,7 @@
     let columnWidths = [];
     let globalSearchQuery = '';
     let columnSearchQueries = {};
+    let hiddenColumns = new Set();
 
     // DOM Elements
     const resultsInfo = document.getElementById('results-info');
@@ -44,8 +45,25 @@
             filterRows();
         });
 
+        // Show all columns button
+        const showAllBtn = document.getElementById('show-all-columns-btn');
+        if (showAllBtn) {
+            showAllBtn.addEventListener('click', () => {
+                hiddenColumns.clear();
+                filterRows();
+                updateShowAllButton();
+            });
+        }
+
         // Notify extension we're ready
         vscode.postMessage({ type: 'ready' });
+    }
+
+    function updateShowAllButton() {
+        const btn = document.getElementById('show-all-columns-btn');
+        if (btn) {
+            btn.style.display = hiddenColumns.size > 0 ? 'inline-block' : 'none';
+        }
     }
 
     /**
@@ -176,6 +194,17 @@
             });
             input.addEventListener('mousedown', e => e.stopPropagation());
         });
+
+        const hideBtns = resultsGrid.querySelectorAll('.hide-column-btn');
+        hideBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const colIndex = parseInt(e.target.dataset.colIndex, 10);
+                hiddenColumns.add(colIndex);
+                filterRows();
+                updateShowAllButton();
+            });
+        });
     }
 
     /**
@@ -192,12 +221,18 @@
         html += '<thead><tr>';
         html += '<th class="row-number">#</th>';
         columns.forEach((col, i) => {
+            if (hiddenColumns.has(i)) return;
             const searchVal = columnSearchQueries[i] || '';
             html += `<th data-col-index="${i}" style="width: ${columnWidths[i]}px; min-width: 50px; position: relative;">
                 <div class="column-header">
-                    <span class="column-name">${escapeHtml(col.name)}</span>
-                    <span class="column-type">${escapeHtml(col.type)}</span>
-                    <input type="text" class="column-search-input" data-col-index="${i}" value="${escapeHtml(searchVal)}" placeholder="Filter..." />
+                    <div class="column-title-row">
+                        <span class="column-name" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</span>
+                        <span class="column-type">${escapeHtml(col.type)}</span>
+                        <button class="hide-column-btn" data-col-index="${i}" title="Hide column">✕</button>
+                    </div>
+                    <div class="column-filter-row">
+                        <input type="text" class="column-search-input" data-col-index="${i}" value="${escapeHtml(searchVal)}" placeholder="Filter..." />
+                    </div>
                 </div>
                 <div class="column-resizer" data-col-index="${i}"></div>
             </th>`;
@@ -210,6 +245,7 @@
             html += '<tr>';
             html += `<td class="row-number">${rowIndex + 1}</td>`;
             row.forEach((cell, colIndex) => {
+                if (hiddenColumns.has(colIndex)) return;
                 const col = columns[colIndex];
                 const isNumeric = isNumericType(col?.type);
                 const isNull = cell === null || cell === undefined;
@@ -242,12 +278,18 @@
         headerHtml += '<div class="virtual-row" style="position: relative; display: flex; border-bottom: 2px solid var(--vscode-panel-border); background: var(--vscode-editorWidget-background);">';
         headerHtml += `<div class="virtual-cell row-number" style="width: 60px; min-width: 60px;">#</div>`;
         columns.forEach((col, i) => {
+            if (hiddenColumns.has(i)) return;
             const searchVal = columnSearchQueries[i] || '';
             headerHtml += `<div class="virtual-cell" style="width: ${columnWidths[i]}px; min-width: ${columnWidths[i]}px; font-weight: 600;">
                 <div class="column-header">
-                    <span class="column-name">${escapeHtml(col.name)}</span>
-                    <span class="column-type" style="font-size: 10px; color: var(--vscode-descriptionForeground);">${escapeHtml(col.type)}</span>
-                    <input type="text" class="column-search-input" data-col-index="${i}" value="${escapeHtml(searchVal)}" placeholder="Filter..." />
+                    <div class="column-title-row">
+                        <span class="column-name" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</span>
+                        <span class="column-type" style="font-size: 10px; color: var(--vscode-descriptionForeground);">${escapeHtml(col.type)}</span>
+                        <button class="hide-column-btn" data-col-index="${i}" title="Hide column">✕</button>
+                    </div>
+                    <div class="column-filter-row">
+                        <input type="text" class="column-search-input" data-col-index="${i}" value="${escapeHtml(searchVal)}" placeholder="Filter..." />
+                    </div>
                 </div>
             </div>`;
         });
@@ -290,6 +332,7 @@
             html += `<div class="virtual-row" style="top: ${top}px; height: ${ROW_HEIGHT}px;">`;
             html += `<div class="virtual-cell row-number" style="width: 60px; min-width: 60px;">${i + 1}</div>`;
             row.forEach((cell, colIndex) => {
+                if (hiddenColumns.has(colIndex)) return;
                 const col = columns[colIndex];
                 const isNumeric = isNumericType(col?.type);
                 const isNull = cell === null || cell === undefined;

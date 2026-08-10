@@ -22,6 +22,10 @@ suite('CSV Type Inference Test Suite', () => {
         
         // Write a string at the end that would fail an integer cast
         stream.write(`22000,ThisIsAString\n`);
+        
+        // Write snowflake null values
+        stream.write(`22001,\\N\n`);
+        stream.write(`22002,\\\\N\n`);
         stream.end();
     });
 
