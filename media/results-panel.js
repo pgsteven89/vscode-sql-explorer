@@ -374,10 +374,95 @@
     }
 
     /**
+     * Check if a column type is a date or time type
+     */
+    function isDateType(type) {
+        if (!type) return false;
+        const t = type.toLowerCase();
+        return t.includes('date') || t.includes('time') || t.includes('timestamp');
+    }
+
+    /**
      * Format a cell value for display
      */
     function formatValue(value, type) {
         if (value === null || value === undefined) return 'NULL';
+        
+        if (isDateType(type)) {
+            try {
+                if (typeof value === 'number' || typeof value === 'bigint') {
+                    let numValue = Number(value);
+                    const t = type.toLowerCase();
+
+                    // Handle TIME type (usually microseconds since midnight)
+                    if (t.includes('time') && !t.includes('timestamp')) {
+                        let timeMs = Math.floor(numValue / 1000); // DuckDB TIME is often microseconds
+                        // If it's already in ms (e.g. less than 86,400,000)
+                        if (numValue < 86400000) timeMs = numValue;
+                        
+                        const hours = Math.floor(timeMs / 3600000);
+                        timeMs %= 3600000;
+                        const minutes = Math.floor(timeMs / 60000);
+                        timeMs %= 60000;
+                        const seconds = Math.floor(timeMs / 1000);
+                        const msStr = (timeMs % 1000).toString().padStart(3, '0');
+                        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${msStr}`;
+                    }
+
+                    // Handle DATE and TIMESTAMP types
+                    let ms = numValue;
+                    if (t.includes('date') && !t.includes('timestamp') && ms < 10000000) {
+                        // DuckDB DATE is usually days since epoch
+                        ms = ms * 24 * 60 * 60 * 1000;
+                    } else if (ms > 1e16 || ms < -1e16) { 
+                        // Nanoseconds
+                        ms = Math.floor(ms / 1000000);
+                    } else if (ms > 1e14 || ms < -1e14 || (t.includes('timestamp') && (ms > 1e11 || ms < -1e11))) { 
+                        // Microseconds (DuckDB native TIMESTAMP is microseconds)
+                        // If it's a timestamp and magnitude is > 1e11 (which in ms is year 1973), it's highly likely microseconds
+                        // because 1e11 microseconds is just ~1.1 days.
+                        // Actually, DuckDB always uses microseconds for Timestamp unless specified otherwise.
+                        ms = Math.floor(ms / 1000);
+                    } else if (ms < 1e11 && ms > 1e8) {
+                        // For non-timestamps or extremely small timestamps, it could be seconds, but
+                        // usually we just treat it as milliseconds if it doesn't clearly match seconds.
+                        // Let's assume standard JS milliseconds if it's smaller, 
+                        // unless it looks exactly like recent seconds (1e9 to 3e9).
+                        if (ms > 1e9 && ms < 3e9) {
+                            ms = ms * 1000; // Seconds (e.g. 2001 - 2065)
+                        }
+                    }
+
+                    // Convert to UTC-aligned date if it was days since epoch, 
+                    // because local timezone offset would shift it to previous day for negative offsets.
+                    // For timestamps, local time is usually expected, but standard `toLocaleString` works.
+                    if (t.includes('date') && !t.includes('timestamp')) {
+                        const date = new Date(ms);
+                        // Add timezone offset so it prints the correct date in local time
+                        date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+                        if (!isNaN(date.getTime())) return date.toLocaleDateString();
+                    } else {
+                        const date = new Date(ms);
+                        if (!isNaN(date.getTime())) return date.toLocaleString();
+                    }
+                } else if (typeof value === 'string') {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                        const t = type.toLowerCase();
+                        if (t.includes('date') && !t.includes('time') && !t.includes('timestamp')) {
+                            return date.toLocaleDateString();
+                        }
+                        if (t.includes('time') && !t.includes('date') && !t.includes('timestamp')) {
+                            return date.toLocaleTimeString();
+                        }
+                        return date.toLocaleString();
+                    }
+                }
+            } catch (e) {
+                // Ignore parse errors and fallback to string
+            }
+        }
+
         if (typeof value === 'object') return JSON.stringify(value);
         if (typeof value === 'number') {
             if (Number.isInteger(value)) return value.toString();
