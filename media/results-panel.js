@@ -417,11 +417,8 @@
                     } else if (ms > 1e16 || ms < -1e16) { 
                         // Nanoseconds
                         ms = Math.floor(ms / 1000000);
-                    } else if (ms > 1e14 || ms < -1e14 || (t.includes('timestamp') && (ms > 1e11 || ms < -1e11))) { 
+                    } else if (ms > 1e14 || ms < -1e14) { 
                         // Microseconds (DuckDB native TIMESTAMP is microseconds)
-                        // If it's a timestamp and magnitude is > 1e11 (which in ms is year 1973), it's highly likely microseconds
-                        // because 1e11 microseconds is just ~1.1 days.
-                        // Actually, DuckDB always uses microseconds for Timestamp unless specified otherwise.
                         ms = Math.floor(ms / 1000);
                     } else if (ms < 1e11 && ms > 1e8) {
                         // For non-timestamps or extremely small timestamps, it could be seconds, but
