@@ -261,7 +261,7 @@ export class SqlExplorerPanel {
         worker-src ${webview.cspSource} blob:;
         img-src ${webview.cspSource} data:;
         font-src ${webview.cspSource};
-        connect-src ${webview.cspSource} blob: data:;
+        connect-src ${webview.cspSource} blob: data: https://extensions.duckdb.org;
     ">
     <link href="${styleUri}" rel="stylesheet">
     <title>SQL Explorer</title>

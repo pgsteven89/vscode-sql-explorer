@@ -139,7 +139,7 @@ export class DuckDBManager {
                 // For SQLite, we attach it and copy tables
                 await this.conn.query(`ATTACH '${virtualFileName}' AS attached_db (TYPE SQLITE)`);
                 // Get tables from the attached database
-                const tables = await this.conn.query(`SELECT name FROM attached_db.sqlite_master WHERE type='table'`);
+                const tables = await this.conn.query(`SELECT table_name as name FROM information_schema.tables WHERE table_catalog='attached_db'`);
                 const tableNames = tables.toArray().map(row => row.name as string);
                 // Copy each table with a prefix
                 for (const t of tableNames) {
